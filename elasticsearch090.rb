@@ -3,7 +3,7 @@ require 'formula'
 class Elasticsearch090 < Formula
   homepage 'http://www.elasticsearch.org'
   url 'https://download.elasticsearch.org/elasticsearch/elasticsearch/elasticsearch-0.90.13.tar.gz'
-  sha2 '82904d4c564fc893a1cfc0deb4526073900072a3f4667b995881a2ec5cdfdb43'
+  sha256 '82904d4c564fc893a1cfc0deb4526073900072a3f4667b995881a2ec5cdfdb43'
 
   head do
     url 'https://github.com/elasticsearch/elasticsearch.git'
