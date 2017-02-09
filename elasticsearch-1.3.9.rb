@@ -1,6 +1,6 @@
 require "formula"
 
-class Elasticsearch134 < Formula
+class Elasticsearch139 < Formula
   desc "Distributed search & analytics engine"
   homepage "https://www.elastic.co/products/elasticsearch"
   url "https://download.elastic.co/elasticsearch/elasticsearch/elasticsearch-1.3.9.tar.gz"
