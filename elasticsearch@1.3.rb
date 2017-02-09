@@ -1,32 +1,21 @@
-require "formula"
-
-class Elasticsearch139 < Formula
+class ElasticsearchAT13 < Formula
   desc "Distributed search & analytics engine"
   homepage "https://www.elastic.co/products/elasticsearch"
   url "https://download.elastic.co/elasticsearch/elasticsearch/elasticsearch-1.3.9.tar.gz"
   sha256 "9b12ceba35c4a48e3e0fdc93f0676917d10acb5ee9264e9f2f9efc1a73e540bd"
-
-  head do
-    url "https://github.com/elasticsearch/elasticsearch.git"
-    depends_on "maven"
-  end
+  revision 1
 
   bottle :unneeded
+
+  keg_only :versioned_formula
 
   depends_on :java => "1.7+"
 
   def cluster_name
-    "elasticsearch_#{ENV['USER']}"
+    "elasticsearch_#{ENV["USER"]}"
   end
 
   def install
-    if build.head?
-      # Build the package from source
-      system "mvn clean package -DskipTests"
-      # Extract the package to the current directory
-      system "tar --strip 1 -xzf target/releases/elasticsearch-*.tar.gz"
-    end
-
     # Remove Windows files
     rm_f Dir["bin/*.bat"]
     rm_f Dir["bin/*.exe"]
@@ -40,38 +29,33 @@ class Elasticsearch139 < Formula
 
     # Remove unnecessary files
     rm_f Dir["#{lib}/sigar/*"]
-    if build.head?
-      rm_rf "#{prefix}/pom.xml"
-      rm_rf "#{prefix}/src/"
-      rm_rf "#{prefix}/target/"
-    end
 
     # Set up Elasticsearch for local development:
     inreplace "#{prefix}/config/elasticsearch.yml" do |s|
       # 1. Give the cluster a unique name
-      s.gsub! /#\s*cluster\.name\: elasticsearch/, "cluster.name: #{cluster_name}"
+      s.gsub!(/#\s*cluster\.name\: elasticsearch/, "cluster.name: #{cluster_name}")
 
       # 2. Configure paths
-      s.sub! /#\s*path\.data: \/path\/to.+$/, "path.data: #{var}/elasticsearch/"
-      s.sub! /#\s*path\.logs: \/path\/to.+$/, "path.logs: #{var}/log/elasticsearch/"
-      s.sub! /#\s*path\.plugins: \/path\/to.+$/, "path.plugins: #{var}/lib/elasticsearch/plugins"
+      s.sub!(%r{#\s*path\.data: /path/to.+$}, "path.data: #{var}/elasticsearch/")
+      s.sub!(%r{#\s*path\.logs: /path/to.+$}, "path.logs: #{var}/log/elasticsearch/")
+      s.sub!(%r{#\s*path\.plugins: /path/to.+$}, "path.plugins: #{var}/lib/elasticsearch/plugins")
 
       # 3. Bind to loopback IP for laptops roaming different networks
-      s.gsub! /#\s*network\.host\: [^\n]+/, "network.host: 127.0.0.1"
+      s.gsub!(/#\s*network\.host\: [^\n]+/, "network.host: 127.0.0.1")
     end
 
     inreplace "#{bin}/elasticsearch.in.sh" do |s|
       # Configure ES_HOME
-      s.sub!  /#\!\/bin\/sh\n/, "#!/bin/sh\n\nES_HOME=#{prefix}"
+      s.sub!(%r{#\!/bin/sh\n}, "#!/bin/sh\n\nES_HOME=#{prefix}")
       # Configure ES_CLASSPATH paths to use libexec instead of lib
-      s.gsub! /ES_HOME\/lib\//, "ES_HOME/libexec/"
+      s.gsub!(%r{ES_HOME/lib/}, "ES_HOME/libexec/")
     end
 
     inreplace "#{bin}/plugin" do |s|
       # Add the proper ES_CLASSPATH configuration
-      s.sub!  /SCRIPT="\$0"/, %Q|SCRIPT="$0"\nES_CLASSPATH=#{libexec}|
+      s.sub!(/SCRIPT="\$0"/, %Q(SCRIPT="$0"\nES_CLASSPATH=#{libexec}))
       # Replace paths to use libexec instead of lib
-      s.gsub! /\$ES_HOME\/lib\//, "$ES_CLASSPATH/"
+      s.gsub!(%r{\$ES_HOME/lib/}, "$ES_CLASSPATH/")
     end
   end
 
@@ -80,16 +64,18 @@ class Elasticsearch139 < Formula
     (var/"elasticsearch/#{cluster_name}").mkpath
     (var/"log/elasticsearch").mkpath
     (var/"lib/elasticsearch/plugins").mkpath
+    ln_s etc/"elasticsearch", prefix/"config"
   end
 
   def caveats; <<-EOS.undent
     Data:    #{var}/elasticsearch/#{cluster_name}/
     Logs:    #{var}/log/elasticsearch/#{cluster_name}.log
     Plugins: #{var}/lib/elasticsearch/plugins/
+    Config:  #{etc}/elasticsearch/
     EOS
   end
 
-  plist_options :manual => "elasticsearch --config=#{HOMEBREW_PREFIX}/opt/elasticsearch/config/elasticsearch.yml"
+  plist_options :manual => "elasticsearch --config=#{HOMEBREW_PREFIX}/opt/elasticsearch@1.3/config/elasticsearch.yml"
 
   def plist; <<-EOS.undent
       <?xml version="1.0" encoding="UTF-8"?>
@@ -102,7 +88,7 @@ class Elasticsearch139 < Formula
           <string>#{plist_name}</string>
           <key>ProgramArguments</key>
           <array>
-            <string>#{HOMEBREW_PREFIX}/bin/elasticsearch</string>
+            <string>#{opt_bin}/elasticsearch</string>
             <string>--config=#{prefix}/config/elasticsearch.yml</string>
           </array>
           <key>EnvironmentVariables</key>
@@ -115,11 +101,15 @@ class Elasticsearch139 < Formula
           <key>WorkingDirectory</key>
           <string>#{var}</string>
           <key>StandardErrorPath</key>
-          <string>/dev/null</string>
+          <string>#{var}/log/#{name}.log</string>
           <key>StandardOutPath</key>
-          <string>/dev/null</string>
+          <string>#{var}/log/#{name}.log</string>
         </dict>
       </plist>
     EOS
+  end
+
+  test do
+    system "#{bin}/plugin", "--list"
   end
 end
